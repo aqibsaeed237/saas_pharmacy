@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/app_router.dart';
+import '../../authentication/bloc/auth_bloc.dart';
+import '../../authentication/bloc/auth_event.dart';
+import '../../authentication/bloc/auth_state.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'dart:io';
@@ -212,7 +217,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
+    return BlocListener<AuthBloc, AuthState>(
+      listenWhen: (prev, curr) => curr is AuthUnauthenticated,
+      listener: (context, state) => context.go(AppRoutes.login),
+      child: Scaffold(
       appBar: AppBar(
         title: Text(loc?.translate('settings') ?? 'Settings'),
         leading: IconButton(
@@ -538,7 +546,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       TextButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          context.go('/login');
+                          context.read<AuthBloc>().add(const LogoutRequested());
                         },
                         child: Text(loc?.translate('logout') ?? 'Logout'),
                       ),
@@ -550,6 +558,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

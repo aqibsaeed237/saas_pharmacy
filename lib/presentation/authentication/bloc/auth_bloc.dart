@@ -79,7 +79,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) => emit(AuthError(failure.message)),
-      (_) => emit(const AuthUnauthenticated()),
+      (_) {
+        AppRouter.currentUser = null;
+        emit(const AuthUnauthenticated());
+      },
     );
   }
 

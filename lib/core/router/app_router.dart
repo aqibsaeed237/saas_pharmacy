@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:chucker_flutter/chucker_flutter.dart' show ChuckerFlutter;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../domain/entities/user.dart';
@@ -32,6 +34,7 @@ import '../../presentation/subscriptions/screens/subscription_screen.dart';
 import '../../presentation/settings/screens/settings_screen.dart';
 import '../../presentation/settings/screens/profile_edit_screen.dart';
 import '../../presentation/widgets/persistent_bottom_nav.dart';
+import '../../presentation/widgets/shell_with_bottom_nav.dart';
 import '../../presentation/categories/screens/categories_screen.dart';
 import '../../presentation/categories/screens/category_form_screen.dart';
 import '../../presentation/categories/bloc/category_bloc.dart';
@@ -54,6 +57,7 @@ import '../../presentation/payment_methods/bloc/payment_method_bloc.dart';
 import '../../presentation/search/screens/global_search_screen.dart';
 import '../../presentation/search/bloc/search_bloc.dart';
 import '../../presentation/sales/screens/sales_history_screen.dart';
+import '../../presentation/error/screens/not_found_screen.dart';
 
 /// Named route constants for type-safe navigation
 class AppRoutes {
@@ -136,6 +140,10 @@ class AppRouter {
 
   static final GoRouter router = GoRouter(
     initialLocation: AppRoutes.splash,
+    errorBuilder: (context, state) => NotFoundScreen(
+      path: state.uri.path,
+      error: state.error,
+    ),
     routes: [
       GoRoute(
         path: AppRoutes.splash,
@@ -152,125 +160,181 @@ class AppRouter {
         name: 'register',
         builder: (context, state) => const RegisterTenantScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.dashboard,
-        name: 'dashboard',
-        builder: (context, state) => PersistentBottomNav(
-          currentRoute: AppRoutes.dashboard,
-          child: const DashboardScreen(),
-        ),
-      ),
-      // Staff routes
-      GoRoute(
-        path: AppRoutes.staff,
-        name: 'staff',
-        builder: (context, state) => const StaffListScreen(),
-        routes: [
-          GoRoute(
-            path: 'add',
-            name: 'staffAdd',
-            builder: (context, state) => const StaffFormScreen(),
-          ),
-          GoRoute(
-            path: 'edit/:id',
-            name: 'staffEdit',
-            builder: (context, state) {
-              final id = state.pathParameters['id']!;
-              return StaffFormScreen(staffId: id);
-            },
-          ),
-        ],
-      ),
-      // Product routes
-      GoRoute(
-        path: AppRoutes.products,
-        name: 'products',
-        builder: (context, state) {
-          return BlocProvider(
-            create: (_) => getIt<ProductBloc>(),
-            child: PersistentBottomNav(
-              currentRoute: AppRoutes.products,
-              child: const ProductsScreen(),
-            ),
-          );
-        },
-        routes: [
-          GoRoute(
-            path: 'add',
-            name: 'productsAdd',
-            builder: (context, state) => MultiBlocProvider(
-              providers: [
-                BlocProvider(create: (_) => getIt<ProductBloc>()),
-                BlocProvider(create: (_) => CategoryBloc()..add(const LoadCategories())),
-              ],
-              child: const ProductFormScreen(),
-            ),
-          ),
-          GoRoute(
-            path: 'edit/:id',
-            name: 'productsEdit',
-            builder: (context, state) {
-              final id = state.pathParameters['id']!;
-              return MultiBlocProvider(
-                providers: [
-                  BlocProvider(create: (_) => getIt<ProductBloc>()),
-                  BlocProvider(create: (_) => CategoryBloc()..add(const LoadCategories())),
+      // StatefulShellRoute - persistent bottom nav, screens don't reload on tab switch
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            ShellWithBottomNav(navigationShell: navigationShell),
+        branches: [
+          // Branch 0: Dashboard
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.dashboard,
+                name: 'dashboard',
+                builder: (context, state) => const DashboardScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'staff',
+                    name: 'staff',
+                    builder: (context, state) => const StaffListScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'add',
+                        name: 'staffAdd',
+                        builder: (context, state) => const StaffFormScreen(),
+                      ),
+                      GoRoute(
+                        path: 'edit/:id',
+                        name: 'staffEdit',
+                        builder: (context, state) {
+                          final id = state.pathParameters['id']!;
+                          return StaffFormScreen(staffId: id);
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'notifications',
+                    name: 'notifications',
+                    builder: (context, state) => const NotificationListScreen(),
+                  ),
+                  GoRoute(
+                    path: 'subscriptions',
+                    name: 'subscriptions',
+                    builder: (context, state) => const SubscriptionScreen(),
+                  ),
+                  GoRoute(
+                    path: 'settings',
+                    name: 'settings',
+                    builder: (context, state) => const SettingsScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'profile/edit',
+                        name: 'profileEdit',
+                        builder: (context, state) => const ProfileEditScreen(),
+                      ),
+                    ],
+                  ),
                 ],
-                child: ProductFormScreen(productId: id),
-              );
-            },
-          ),
-        ],
-      ),
-      // Inventory routes
-      GoRoute(
-        path: AppRoutes.inventory,
-        name: 'inventory',
-        builder: (context, state) => PersistentBottomNav(
-          currentRoute: AppRoutes.inventory,
-          child: const InventoryListScreen(),
-        ),
-        routes: [
-          GoRoute(
-            path: 'add',
-            name: 'inventoryAdd',
-            builder: (context, state) => const InventoryFormScreen(),
-          ),
-          GoRoute(
-            path: 'detail/:batchId',
-            name: 'inventoryDetail',
-            builder: (context, state) {
-              final batchId = state.pathParameters['batchId']!;
-              return InventoryDetailScreen(batchId: batchId);
-            },
-          ),
-          GoRoute(
-            path: 'edit/:id',
-            name: 'inventoryEdit',
-            builder: (context, state) {
-              final id = state.pathParameters['id']!;
-              return InventoryFormScreen(batchId: id);
-            },
-          ),
-        ],
-      ),
-      // Sales routes
-      GoRoute(
-        path: AppRoutes.pos,
-        name: 'pos',
-        builder: (context, state) {
-          return MultiBlocProvider(
-            providers: [
-              BlocProvider(create: (_) => getIt<SaleBloc>()),
-              BlocProvider(create: (_) => getIt<ProductBloc>()),
-              BlocProvider(create: (_) => CategoryBloc()..add(const LoadCategories())),
+              ),
             ],
-            child: PersistentBottomNav(
-              currentRoute: AppRoutes.pos,
-              child: const PosScreen(),
-            ),
-          );
-        },
+          ),
+          // Branch 1: Products
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.products,
+                name: 'products',
+                builder: (context, state) {
+                  return BlocProvider(
+                    create: (_) => getIt<ProductBloc>(),
+                    child: const ProductsScreen(),
+                  );
+                },
+                routes: [
+                  GoRoute(
+                    path: 'add',
+                    name: 'productsAdd',
+                    builder: (context, state) => MultiBlocProvider(
+                      providers: [
+                        BlocProvider(create: (_) => getIt<ProductBloc>()),
+                        BlocProvider(create: (_) => CategoryBloc()..add(const LoadCategories())),
+                      ],
+                      child: const ProductFormScreen(),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'edit/:id',
+                    name: 'productsEdit',
+                    builder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      return MultiBlocProvider(
+                        providers: [
+                          BlocProvider(create: (_) => getIt<ProductBloc>()),
+                          BlocProvider(create: (_) => CategoryBloc()..add(const LoadCategories())),
+                        ],
+                        child: ProductFormScreen(productId: id),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Branch 2: POS
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.pos,
+                name: 'pos',
+                builder: (context, state) {
+                  return MultiBlocProvider(
+                    providers: [
+                      BlocProvider(create: (_) => getIt<SaleBloc>()),
+                      BlocProvider(create: (_) => getIt<ProductBloc>()),
+                      BlocProvider(create: (_) => CategoryBloc()..add(const LoadCategories())),
+                    ],
+                    child: const PosScreen(),
+                  );
+                },
+              ),
+            ],
+          ),
+          // Branch 3: Inventory
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.inventory,
+                name: 'inventory',
+                builder: (context, state) => const InventoryListScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'add',
+                    name: 'inventoryAdd',
+                    builder: (context, state) => const InventoryFormScreen(),
+                  ),
+                  GoRoute(
+                    path: 'detail/:batchId',
+                    name: 'inventoryDetail',
+                    builder: (context, state) {
+                      final batchId = state.pathParameters['batchId']!;
+                      return InventoryDetailScreen(batchId: batchId);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'edit/:id',
+                    name: 'inventoryEdit',
+                    builder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      return InventoryFormScreen(batchId: id);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // Branch 4: Reports
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/reports',
+                redirect: (context, state) => AppRoutes.salesReport,
+                routes: [
+                  GoRoute(
+                    path: 'sales',
+                    name: 'salesReport',
+                    builder: (context, state) => const SalesReportScreen(),
+                  ),
+                  GoRoute(
+                    path: 'inventory',
+                    name: 'inventoryReport',
+                    builder: (context, state) => const InventoryReportScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: '${AppRoutes.saleSummary}/:id',
@@ -304,48 +368,6 @@ class AppRouter {
                 child: PurchaseFormScreen(purchaseId: id),
               );
             },
-          ),
-        ],
-      ),
-      // Reports routes
-      GoRoute(
-        path: AppRoutes.salesReport,
-        name: 'salesReport',
-        builder: (context, state) => PersistentBottomNav(
-          currentRoute: AppRoutes.salesReport,
-          child: const SalesReportScreen(),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.inventoryReport,
-        name: 'inventoryReport',
-        builder: (context, state) => PersistentBottomNav(
-          currentRoute: AppRoutes.inventoryReport,
-          child: const InventoryReportScreen(),
-        ),
-      ),
-      // Notifications
-      GoRoute(
-        path: AppRoutes.notifications,
-        name: 'notifications',
-        builder: (context, state) => const NotificationListScreen(),
-      ),
-      // Subscriptions
-      GoRoute(
-        path: AppRoutes.subscriptions,
-        name: 'subscriptions',
-        builder: (context, state) => const SubscriptionScreen(),
-      ),
-      // Settings routes
-      GoRoute(
-        path: AppRoutes.settings,
-        name: 'settings',
-        builder: (context, state) => const SettingsScreen(),
-        routes: [
-          GoRoute(
-            path: 'profile/edit',
-            name: 'profileEdit',
-            builder: (context, state) => const ProfileEditScreen(),
           ),
         ],
       ),
@@ -542,16 +564,28 @@ class AppRouter {
         builder: (context, state) => const OrderMetricsScreen(),
       ),
     ],
+    observers: kDebugMode ? [ChuckerFlutter.navigatorObserver] : [],
     redirect: (context, state) {
       final isLoggedIn = currentUser != null;
-      final isLoginRoute = state.matchedLocation == AppRoutes.login || state.matchedLocation == AppRoutes.register || state.matchedLocation == AppRoutes.splash;
+      final location = state.matchedLocation;
+      final isLoginRoute = location == AppRoutes.login || location == AppRoutes.register || location == AppRoutes.splash;
 
-      // Redirect to login if not authenticated
+      // Redirect legacy paths to new shell paths (staff, notifications, settings, subscriptions)
+      if (location == AppRoutes.staff || location.startsWith('${AppRoutes.staff}/')) {
+        return '${AppRoutes.dashboard}$location';
+      }
+      if (location == AppRoutes.notifications) return '${AppRoutes.dashboard}/notifications';
+      if (location == AppRoutes.settings || location.startsWith('${AppRoutes.settings}/')) {
+        return '${AppRoutes.dashboard}$location';
+      }
+      if (location == AppRoutes.subscriptions) return '${AppRoutes.dashboard}/subscriptions';
+
+      // If not authenticated: splash -> stay; else -> login
       if (!isLoggedIn && !isLoginRoute) {
         return AppRoutes.login;
       }
 
-      // Redirect to dashboard if logged in and on login/register
+      // If authenticated and on splash/login/register -> bottom nav home (dashboard)
       if (isLoggedIn && isLoginRoute) {
         return AppRoutes.dashboard;
       }
@@ -559,7 +593,6 @@ class AppRouter {
       // Role-based access control
       if (isLoggedIn && currentUser != null) {
         final user = currentUser!;
-        final location = state.matchedLocation;
 
         // Cashier can only access POS
         if (user.role == UserRole.cashier &&

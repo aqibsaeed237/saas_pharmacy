@@ -17,6 +17,7 @@ import '../bloc/sale_state.dart';
 import '../../../core/constants/app_enums.dart';
 import '../widgets/universal_search_bar.dart';
 import '../widgets/product_card_enhanced.dart';
+import '../widgets/cart_bottom_sheet.dart';
 
 /// Point of Sale screen - Enhanced for large store operations
 class PosScreen extends StatefulWidget {
@@ -326,31 +327,6 @@ class _PosScreenState extends State<PosScreen> {
     final loc = AppLocalizations.of(context);
     
     return Scaffold(
-      appBar: AppBar(
-        title: Text(loc?.translate('pos') ?? 'POS'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.goNamed('dashboard'),
-        ),
-        actions: [
-          // Barcode scanner button
-          IconButton(
-            icon: Icon(_isScanning ? Icons.qr_code_scanner : Icons.qr_code_scanner_outlined),
-            onPressed: () {
-              setState(() {
-                _isScanning = !_isScanning;
-              });
-            },
-            tooltip: loc?.translate('scanBarcode') ?? 'Scan Barcode',
-          ),
-          // Customer selection
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () => _showCustomerDialog(context),
-            tooltip: loc?.translate('selectCustomer') ?? 'Select Customer',
-          ),
-        ],
-      ),
       body: BlocConsumer<SaleBloc, SaleState>(
         listener: (context, saleState) {
           if (saleState is SaleSuccess) {
@@ -384,32 +360,50 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Widget _buildTabletLayout(BuildContext context, SaleCartState saleState, AppLocalizations? loc) {
-    return Row(
+    return Column(
       children: [
-        // Products/Items area
+        // App bar for tablet
+        AppBar(
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.goNamed('dashboard'),
+          ),
+          title: Text(loc?.translate('pos') ?? 'POS'),
+          actions: [
+            IconButton(
+              icon: Icon(_isScanning ? Icons.qr_code_scanner : Icons.qr_code_scanner_outlined),
+              onPressed: () => setState(() => _isScanning = !_isScanning),
+              tooltip: loc?.translate('scanBarcode') ?? 'Scan Barcode',
+            ),
+          ],
+        ),
         Expanded(
-          flex: 2,
-          child: Column(
+          child: Row(
             children: [
-                          // Customer info bar
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            color: Theme.of(context).colorScheme.primaryContainer,
-                            child: Row(
-                              children: [
-                                const Icon(Icons.person, size: 20),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _selectedCustomerName ?? loc?.translate('walkInCustomer') ?? 'Walk-in Customer',
-                                    style: Theme.of(context).textTheme.bodyMedium,
+              // Products/Items area
+              Expanded(
+                flex: 2,
+                child: Column(
+                  children: [
+                    // Customer info bar - fully clickable (Walk-in Customer opens customer dialog)
+                    InkWell(
+                            onTap: () => _showCustomerDialog(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              color: Theme.of(context).colorScheme.primaryContainer,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _selectedCustomerName ?? loc?.translate('walkInCustomer') ?? 'Walk-in Customer',
+                                      style: Theme.of(context).textTheme.bodyMedium,
+                                    ),
                                   ),
-                                ),
-                                TextButton(
-                                  onPressed: () => _showCustomerDialog(context),
-                                  child: Text(loc?.translate('change') ?? 'Change'),
-                                ),
-                              ],
+                                  Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                ],
+                              ),
                             ),
                           ),
                           
@@ -418,30 +412,43 @@ class _PosScreenState extends State<PosScreen> {
                             padding: const EdgeInsets.all(16.0),
                             child: Column(
                               children: [
-                                // Barcode scanner view
+                                // Barcode scanner view with close button
                                 if (_isScanning)
-                                  Container(
-                                    height: 200,
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.green, width: 2),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: MobileScanner(
-                                        controller: _scannerController,
-                                        onDetect: (capture) {
-                                          final List<Barcode> barcodes = capture.barcodes;
-                                          for (final barcode in barcodes) {
-                                            if (barcode.rawValue != null) {
-                                              _handleBarcodeScan(barcode.rawValue!);
-                                              break;
-                                            }
-                                          }
-                                        },
+                                  Stack(
+                                    children: [
+                                      Container(
+                                        height: 200,
+                                        margin: const EdgeInsets.only(bottom: 12),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: Colors.green, width: 2),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: MobileScanner(
+                                            controller: _scannerController,
+                                            onDetect: (capture) {
+                                              final List<Barcode> barcodes = capture.barcodes;
+                                              for (final barcode in barcodes) {
+                                                if (barcode.rawValue != null) {
+                                                  _handleBarcodeScan(barcode.rawValue!);
+                                                  break;
+                                                }
+                                              }
+                                            },
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: IconButton.filled(
+                                          icon: const Icon(Icons.close),
+                                          onPressed: () => setState(() => _isScanning = false),
+                                          tooltip: loc?.translate('close') ?? 'Close',
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 
                                 // Universal search bar
@@ -955,154 +962,75 @@ class _PosScreenState extends State<PosScreen> {
                         ],
                       ),
                     ),
-      ],
-    );
+              ],
+            ),
+          ),
+        ],
+      );
   }
 
   Widget _buildMobileLayout(BuildContext context, SaleCartState saleState, AppLocalizations? loc) {
     return Column(
       children: [
-        // Customer info bar
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: Theme.of(context).colorScheme.primaryContainer,
-          child: Row(
-            children: [
-              const Icon(Icons.person, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _selectedCustomerName ?? loc?.translate('walkInCustomer') ?? 'Walk-in Customer',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-              TextButton(
-                onPressed: () => _showCustomerDialog(context),
-                child: Text(loc?.translate('change') ?? 'Change'),
-              ),
-            ],
+        // Fixed AppBar
+        AppBar(
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.goNamed('dashboard'),
           ),
+          title: Text(
+            loc?.translate('pos') ?? 'POS',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: Icon(_isScanning ? Icons.qr_code_scanner : Icons.qr_code_scanner_outlined),
+              onPressed: () => setState(() => _isScanning = !_isScanning),
+              tooltip: loc?.translate('scanBarcode') ?? 'Scan Barcode',
+            ),
+          ],
         ),
-        
-        // Products area (scrollable)
         Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Search/Product selection area
-              Flexible(
-                flex: 0,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_isScanning)
-                        Container(
-                          height: 200,
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.green, width: 2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: MobileScanner(
-                              controller: _scannerController,
-                              onDetect: (capture) {
-                                final List<Barcode> barcodes = capture.barcodes;
-                                for (final barcode in barcodes) {
-                                  if (barcode.rawValue != null) {
-                                    _handleBarcodeScan(barcode.rawValue!);
-                                    break;
-                                  }
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      UniversalSearchBar(
-                        controller: _searchController,
-                        onSearch: _handleSearch,
-                        onProductSelected: _handleProductSelected,
-                        onCustomerSelected: _handleCustomerSelected,
-                        showAdvancedFilters: true,
-                      ),
-                      const SizedBox(height: 12),
-                      BlocBuilder<CategoryBloc, CategoryState>(
-                        builder: (context, categoryState) {
-                          List<dynamic> categories = [];
-                          if (categoryState is CategoriesLoaded) {
-                            categories = categoryState.categories;
-                          }
-                          return DropdownButtonFormField<String>(
-                            value: _selectedCategoryId,
-                            decoration: InputDecoration(
-                              labelText: loc?.translate('filterByCategory') ?? 'Filter by Category',
-                              prefixIcon: const Icon(Icons.category),
-                              border: const OutlineInputBorder(),
-                            ),
-                            hint: Text(loc?.translate('allCategories') ?? 'All Categories'),
-                            items: [
-                              DropdownMenuItem<String>(
-                                value: null,
-                                child: Text(loc?.translate('allCategories') ?? 'All Categories'),
-                              ),
-                              ...categories.map((category) {
-                                return DropdownMenuItem<String>(
-                                  value: category['id'],
-                                  child: Text(category['name']),
-                                );
-                              }),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedCategoryId = value;
-                              });
-                              context.read<ProductBloc>().add(
-                                    LoadProducts(
-                                      search: _searchController.text.isEmpty
-                                          ? null
-                                          : _searchController.text,
-                                      category: value,
-                                    ),
-                                  );
-                            },
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
+          child: CustomScrollView(
+            slivers: [
+              // Header scrolls away first: customer + search + categories, then products
+              SliverToBoxAdapter(
+                child: _buildPinnedHeaderSection(context, loc),
               ),
-              
               // Product grid
-              Expanded(
-                child: BlocBuilder<ProductBloc, ProductState>(
-                  builder: (context, productState) {
-                    if (productState is ProductLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (productState is ProductError) {
-                      return Center(
+              BlocBuilder<ProductBloc, ProductState>(
+                buildWhen: (prev, curr) => prev.runtimeType != curr.runtimeType || curr is ProductsLoaded,
+                builder: (context, productState) {
+                  if (productState is ProductLoading) {
+                    return const SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (productState is ProductError) {
+                    return SliverFillRemaining(
+                      child: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(productState.message),
                             const SizedBox(height: 16),
                             ElevatedButton(
-                              onPressed: () {
-                                context.read<ProductBloc>().add(const LoadProducts());
-                              },
+                              onPressed: () => context.read<ProductBloc>().add(const LoadProducts()),
                               child: Text(loc?.translate('retry') ?? 'Retry'),
                             ),
                           ],
                         ),
-                      );
-                    }
-                    if (productState is ProductsLoaded) {
-                      if (productState.products.isEmpty) {
-                        return Center(
+                      ),
+                    );
+                  }
+                  if (productState is ProductsLoaded) {
+                    if (productState.products.isEmpty) {
+                      return SliverFillRemaining(
+                        child: Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -1118,189 +1046,389 @@ class _PosScreenState extends State<PosScreen> {
                               ),
                             ],
                           ),
-                        );
-                      }
-                      return GridView.builder(
-                        padding: const EdgeInsets.all(16),
+                        ),
+                      );
+                    }
+                    return SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      sliver: SliverGrid(
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          childAspectRatio: 0.75,
+                          childAspectRatio: 0.78,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
-                        itemCount: productState.products.length,
-                        itemBuilder: (context, index) {
-                          final product = productState.products[index];
-                          // Mock stock data
-                          final stockOnHand = (index % 3 == 0) ? 0 : (index % 5 == 0 ? 5 : 50);
-                          final productType = index % 4 == 0 ? 'RX' : 'OTC';
-                          final isScriptWaiting = index % 7 == 0;
-                          
-                          return ProductCardEnhanced(
-                            product: product,
-                            stockOnHand: stockOnHand,
-                            productType: productType,
-                            isScriptWaiting: isScriptWaiting,
-                            onAddToCart: (prod, qty) {
-                              context.read<SaleBloc>().add(
-                                    AddItemToCart(
-                                      productId: prod.id,
-                                      productName: prod.name,
-                                      price: prod.price,
-                                      quantity: qty,
-                                    ),
-                                  );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${prod.name} x$qty ${loc?.translate('added') ?? 'added'}'),
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      );
-                    }
-                    return Center(
-                      child: Text(loc?.translate('noProductsAvailable') ?? 'No products available'),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final product = productState.products[index];
+                            final stockOnHand = (index % 3 == 0) ? 0 : (index % 5 == 0 ? 5 : 50);
+                            final productType = index % 4 == 0 ? 'RX' : 'OTC';
+                            final isScriptWaiting = index % 7 == 0;
+                            return ProductCardEnhanced(
+                              product: product,
+                              stockOnHand: stockOnHand,
+                              productType: productType,
+                              isScriptWaiting: isScriptWaiting,
+                              onAddToCart: (prod, qty) {
+                                context.read<SaleBloc>().add(
+                                  AddItemToCart(
+                                    productId: prod.id,
+                                    productName: prod.name,
+                                    price: prod.price,
+                                    quantity: qty,
+                                  ),
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${prod.name} x$qty ${loc?.translate('added') ?? 'added'}'),
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                          childCount: productState.products.length,
+                        ),
+                      ),
                     );
-                  },
-                ),
+                  }
+                  return SliverToBoxAdapter(child: const SizedBox.shrink());
+                },
               ),
             ],
           ),
         ),
-        
-        // Cart area (bottom sheet style)
-        Container(
-          height: MediaQuery.of(context).size.height * 0.4,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Cart header
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.shopping_cart,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${loc?.translate('cart') ?? 'Cart'} (${saleState.items.length})',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+        // Cart bar - only show when products in cart
+        if (saleState.items.isNotEmpty) ...[
+          Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5)),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _showCartBottomSheet(context, saleState, loc),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                            width: 1,
                           ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Cart items
-              Expanded(
-                child: saleState.items.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        ),
+                        child: Row(
                           children: [
                             Icon(
-                              Icons.shopping_cart_outlined,
-                              size: 64,
-                              color: Theme.of(context).colorScheme.outline,
+                              Icons.shopping_cart_rounded,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 24,
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              loc?.translate('cartEmpty') ?? 'Cart is empty',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(8),
-                        itemCount: saleState.items.length,
-                        itemBuilder: (context, index) {
-                          final item = saleState.items[index];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                            child: ListTile(
-                              dense: true,
-                              title: Text(item.productName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: Text('${item.quantity} x ${CurrencyFormatter.format(item.unitPrice)}'),
-                              trailing: Row(
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    CurrencyFormatter.format(item.total),
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                    '${loc?.translate('cart') ?? 'Cart'} (${saleState.items.length} ${loc?.translate('items') ?? 'items'})',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline, size: 20),
-                                    color: Colors.red,
-                                    onPressed: () {
-                                      context.read<SaleBloc>().add(RemoveItemFromCart(item.id));
-                                    },
+                                  Text(
+                                    CurrencyFormatter.format(saleState.total),
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                          );
-                        },
-                      ),
-              ),
-              
-              // Totals and checkout
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceVariant,
-                ),
-                child: Column(
-                  children: [
-                    _buildTotalRow(
-                      context,
-                      loc?.translate('total') ?? 'Total',
-                      CurrencyFormatter.format(saleState.total),
-                      isTotal: true,
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: saleState.items.isEmpty
-                            ? null
-                            : () {
-                                context.read<SaleBloc>().add(const ProcessSale());
-                              },
-                        child: Text(
-                          loc?.translate('processSale') ?? 'Process Sale',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            IconButton(
+                              icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                              onPressed: () => context.read<SaleBloc>().add(const ClearCart()),
+                              tooltip: loc?.translate('clearCart') ?? 'Clear cart',
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: () => _showProcessSaleConfirmation(
+                        context,
+                        context.read<SaleBloc>(),
+                        saleState,
+                        loc,
+                      ),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        loc?.translate('processSale') ?? 'Process Sale',
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _showCartBottomSheet(
+    BuildContext context,
+    SaleCartState saleState,
+    AppLocalizations? loc,
+  ) {
+    // Modal route is a sibling to POS route, so inject SaleBloc for the modal
+    final saleBloc = context.read<SaleBloc>();
+    final posContext = context;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (sheetContext) => BlocProvider.value(
+        value: saleBloc,
+        child: BlocBuilder<SaleBloc, SaleState>(
+          buildWhen: (prev, curr) => curr is SaleCartState,
+          builder: (context, state) {
+            final cartState = state is SaleCartState ? state : saleState;
+            return CartBottomSheet(
+              saleState: cartState,
+              loc: loc,
+              onProcessSale: () {
+                Navigator.pop(sheetContext);
+                _showProcessSaleConfirmation(posContext, saleBloc, cartState, loc);
+              },
+              onClearCart: () {
+                saleBloc.add(const ClearCart());
+                Navigator.pop(sheetContext);
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showProcessSaleConfirmation(
+    BuildContext context,
+    SaleBloc saleBloc,
+    SaleCartState saleState,
+    AppLocalizations? loc,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.check_circle_outline, color: Theme.of(dialogContext).colorScheme.primary),
+              const SizedBox(width: 12),
+              Text(loc?.translate('confirmSale') ?? 'Confirm Sale'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${loc?.translate('items') ?? 'Items'}: ${saleState.items.length}',
+                style: Theme.of(dialogContext).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${loc?.translate('total') ?? 'Total'}: ${CurrencyFormatter.format(saleState.total)}',
+                style: Theme.of(dialogContext).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                loc?.translate('confirmSaleMessage') ?? 'Proceed with this sale?',
+                style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(dialogContext).colorScheme.outline,
                 ),
               ),
             ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(loc?.translate('cancel') ?? 'Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                saleBloc.add(const ProcessSale());
+              },
+              child: Text(loc?.translate('processSale') ?? 'Process Sale'),
+            ),
+          ],
         ),
-      ],
+    );
+  }
+
+  Widget _buildPinnedHeaderSection(BuildContext context, AppLocalizations? loc) {
+    return Container(
+      color: Theme.of(context).colorScheme.surface,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Customer select bar - pinned with search/categories
+          InkWell(
+            onTap: () => _showCustomerDialog(context),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person_outline_rounded,
+                    size: 22,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _selectedCustomerName ?? loc?.translate('walkInCustomer') ?? 'Walk-in Customer',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ],
+              ),
+            ),
+          ),
+          // Search + category filter
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+            child: _buildSearchFilterSection(context, loc),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchFilterSection(BuildContext context, AppLocalizations? loc) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_isScanning)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Stack(
+                children: [
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: MobileScanner(
+                        controller: _scannerController,
+                        onDetect: (capture) {
+                          for (final barcode in capture.barcodes) {
+                            if (barcode.rawValue != null) {
+                              _handleBarcodeScan(barcode.rawValue!);
+                              break;
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: IconButton.filled(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => setState(() => _isScanning = false),
+                      tooltip: loc?.translate('close') ?? 'Close',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          UniversalSearchBar(
+            controller: _searchController,
+            onSearch: _handleSearch,
+            onProductSelected: _handleProductSelected,
+            onCustomerSelected: _handleCustomerSelected,
+            showAdvancedFilters: true,
+          ),
+          const SizedBox(height: 8),
+          BlocBuilder<CategoryBloc, CategoryState>(
+            builder: (context, categoryState) {
+              List<dynamic> categories = [];
+              if (categoryState is CategoriesLoaded) {
+                categories = categoryState.categories;
+              }
+              return DropdownButtonFormField<String>(
+                value: _selectedCategoryId,
+                decoration: InputDecoration(
+                  labelText: loc?.translate('filterByCategory') ?? 'Filter by Category',
+                  prefixIcon: const Icon(Icons.category_outlined),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                ),
+                hint: Text(loc?.translate('allCategories') ?? 'All Categories'),
+                items: [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text(loc?.translate('allCategories') ?? 'All Categories'),
+                  ),
+                  ...categories.map((category) {
+                    return DropdownMenuItem<String>(
+                      value: category['id'],
+                      child: Text(category['name']),
+                    );
+                  }),
+                ],
+                onChanged: (value) {
+                  setState(() => _selectedCategoryId = value);
+                  context.read<ProductBloc>().add(
+                    LoadProducts(
+                      search: _searchController.text.isEmpty ? null : _searchController.text,
+                      category: value,
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
     );
   }
 

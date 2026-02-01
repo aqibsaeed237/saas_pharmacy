@@ -32,10 +32,11 @@ class ProductCardEnhanced extends StatelessWidget {
     final isOutOfStock = stockOnHand != null && stockOnHand! == 0;
     
     return Card(
-      elevation: 2,
-      color: isScriptWaiting
-          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
-          : null,
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      color: Theme.of(context).colorScheme.surface,
       child: InkWell(
         onTap: () {
           if (variants != null && variants!.isNotEmpty) {
@@ -45,8 +46,9 @@ class ProductCardEnhanced extends StatelessWidget {
           }
         },
         onLongPress: () => _showQuantityDialog(context),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,22 +57,28 @@ class ProductCardEnhanced extends StatelessWidget {
               if (productType != null)
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: productType == 'RX'
-                            ? Colors.red.withOpacity(0.2)
-                            : Colors.blue.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        productType!,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: productType == 'RX' ? Colors.red : Colors.blue,
-                        ),
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final theme = Theme.of(context);
+                        final otcColor = theme.colorScheme.primary;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: productType == 'RX'
+                                ? Colors.red.withOpacity(0.2)
+                                : otcColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            productType!,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: productType == 'RX' ? Colors.red : otcColor,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     if (isScriptWaiting)
                       Container(

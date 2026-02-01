@@ -76,7 +76,11 @@ dependencies:
   fl_chart: ^0.66.0
   
   # Sharing
-  share_plus: ^7.2.1
+  share_plus: ^12.0.1
+
+  # Debug tools (used in debug mode only)
+  device_preview: ^1.2.0
+  chucker_flutter: ^1.9.1
 
 dev_dependencies:
   flutter_test:

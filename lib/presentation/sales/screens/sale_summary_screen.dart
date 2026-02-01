@@ -2,13 +2,14 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/router/app_router.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../../core/utils/invoice_pdf_builder.dart';
 import '../../widgets/app_button.dart';
 
 /// Sale summary/invoice screen
@@ -17,10 +18,15 @@ class SaleSummaryScreen extends StatelessWidget {
 
   const SaleSummaryScreen({super.key, required this.saleId});
 
-  // Mock data
+  // Mock data - Invoice-PWD48Y7J-0003 format
   Map<String, dynamic> get _mockSale => {
-        'invoiceNumber': 'INV-2024-001',
+        'storeCode': 'PWD48Y7J',
+        'invoiceNumber': 3,
+        'invoiceId': 'PWD48Y7J-0003',
         'date': DateTime.now(),
+        'businessName': 'My Pharmacy',
+        'address': '123 Main Street, City',
+        'phone': '+1234567890',
         'items': [
           {'name': 'Paracetamol 500mg', 'quantity': 2, 'price': 5.99, 'total': 11.98},
           {'name': 'Aspirin 100mg', 'quantity': 1, 'price': 3.50, 'total': 3.50},
@@ -30,6 +36,7 @@ class SaleSummaryScreen extends StatelessWidget {
         'tax': 1.55,
         'total': 17.03,
         'paymentMethod': 'Cash',
+        'customerName': 'Walk-in Customer',
         'staffName': 'John Doe',
       };
 
@@ -37,13 +44,19 @@ class SaleSummaryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final sale = _mockSale;
     
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sale Summary'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
+    // Back from invoice → POS screen
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop && context.mounted) context.go(AppRoutes.pos);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Sale Summary'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.go(AppRoutes.pos),
+          ),
         actions: [
           PopupMenuButton(
             icon: const Icon(Icons.more_vert),
@@ -91,7 +104,7 @@ class SaleSummaryScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
+        body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -110,7 +123,7 @@ class SaleSummaryScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      sale['invoiceNumber'],
+                      sale['invoiceId'] ?? sale['invoiceNumber']?.toString() ?? '',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 8),
@@ -218,6 +231,7 @@ class SaleSummaryScreen extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -255,7 +269,9 @@ class SaleSummaryScreen extends StatelessWidget {
 
   Future<void> _printReceipt(BuildContext context) async {
     try {
-      final pdfBytes = await _generateReceiptPdf();
+      final sale = _mockSale;
+      final invoiceData = _buildInvoicePdfData(sale);
+      final pdfBytes = await InvoicePdfBuilder.buildPdf(invoiceData);
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdfBytes,
       );
@@ -281,9 +297,11 @@ class SaleSummaryScreen extends StatelessWidget {
 
   Future<void> _downloadReceipt(BuildContext context) async {
     try {
-      final pdfBytes = await _generateReceiptPdf();
+      final sale = _mockSale;
+      final invoiceData = _buildInvoicePdfData(sale);
+      final pdfBytes = await InvoicePdfBuilder.buildPdf(invoiceData);
       final directory = await getApplicationDocumentsDirectory();
-      final filePath = '${directory.path}/receipt_${saleId}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final filePath = '${directory.path}/${invoiceData.fileName}';
       final file = File(filePath);
       await file.writeAsBytes(pdfBytes);
       
@@ -312,9 +330,11 @@ class SaleSummaryScreen extends StatelessWidget {
 
   Future<void> _shareReceipt(BuildContext context) async {
     try {
-      final pdfBytes = await _generateReceiptPdf();
+      final sale = _mockSale;
+      final invoiceData = _buildInvoicePdfData(sale);
+      final pdfBytes = await InvoicePdfBuilder.buildPdf(invoiceData);
       final directory = await getApplicationDocumentsDirectory();
-      final filePath = '${directory.path}/receipt_${saleId}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final filePath = '${directory.path}/${invoiceData.fileName}';
       final file = File(filePath);
       await file.writeAsBytes(pdfBytes);
       
@@ -340,127 +360,30 @@ class SaleSummaryScreen extends StatelessWidget {
     }
   }
 
-  Future<Uint8List> _generateReceiptPdf() async {
-    final sale = _mockSale;
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) {
-          return [
-            // Header
-            pw.Center(
-              child: pw.Column(
-                children: [
-                  pw.Text(
-                    'PHARMACY POS',
-                    style: pw.TextStyle(
-                      fontSize: 20,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Text(
-                    'Invoice #${sale['invoiceNumber']}',
-                    style: const pw.TextStyle(fontSize: 14),
-                  ),
-                  pw.Text(
-                    DateFormatter.toDisplayDateTime(sale['date'] as DateTime),
-                    style: const pw.TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Divider(),
-
-            // Items
-            ...(sale['items'] as List).map((item) {
-              return pw.Padding(
-                padding: const pw.EdgeInsets.symmetric(vertical: 4),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Expanded(
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            item['name'],
-                            style: const pw.TextStyle(fontSize: 12),
-                          ),
-                          pw.Text(
-                            '${item['quantity']} x ${CurrencyFormatter.format(item['price'])}',
-                            style: const pw.TextStyle(fontSize: 10),
-                          ),
-                        ],
-                      ),
-                    ),
-                    pw.Text(
-                      CurrencyFormatter.format(item['total']),
-                      style: const pw.TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-
-            pw.Divider(),
-            pw.SizedBox(height: 10),
-
-            // Totals
-            _buildPdfTotalRow('Subtotal', sale['subtotal']),
-            if (sale['discount'] > 0)
-              _buildPdfTotalRow('Discount', -sale['discount']),
-            _buildPdfTotalRow('Tax', sale['tax']),
-            pw.Divider(),
-            _buildPdfTotalRow('Total', sale['total'], isTotal: true),
-
-            pw.SizedBox(height: 20),
-            pw.Center(
-              child: pw.Text(
-                'Payment: ${sale['paymentMethod']}',
-                style: const pw.TextStyle(fontSize: 12),
-              ),
-            ),
-            pw.SizedBox(height: 10),
-            pw.Center(
-              child: pw.Text(
-                'Thank you for your purchase!',
-                style: const pw.TextStyle(fontSize: 10),
-              ),
-            ),
-          ];
-        },
-      ),
-    );
-
-    return await pdf.save();
-  }
-
-  pw.Widget _buildPdfTotalRow(String label, double amount, {bool isTotal = false}) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 4),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              fontSize: isTotal ? 14 : 12,
-              fontWeight: isTotal ? pw.FontWeight.bold : pw.FontWeight.normal,
-            ),
-          ),
-          pw.Text(
-            CurrencyFormatter.format(amount),
-            style: pw.TextStyle(
-              fontSize: isTotal ? 14 : 12,
-              fontWeight: isTotal ? pw.FontWeight.bold : pw.FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
+  InvoicePdfData _buildInvoicePdfData(Map<String, dynamic> sale) {
+    return InvoicePdfData(
+      storeCode: sale['storeCode'] as String? ?? 'PWD48Y7J',
+      invoiceNumber: (sale['invoiceNumber'] as int?) ?? 1,
+      date: sale['date'] as DateTime,
+      businessName: sale['businessName'] as String? ?? 'My Pharmacy',
+      logoBytes: sale['logoBytes'] != null
+          ? Uint8List.fromList((sale['logoBytes'] as List<int>))
+          : null,
+      address: sale['address'] as String?,
+      phone: sale['phone'] as String?,
+      items: (sale['items'] as List).map((item) => InvoicePdfItem(
+        productName: item['name'] as String,
+        quantity: item['quantity'] as int,
+        unitPrice: (item['price'] as num).toDouble(),
+        total: (item['total'] as num).toDouble(),
+      )).toList(),
+      subtotal: (sale['subtotal'] as num).toDouble(),
+      discount: (sale['discount'] as num).toDouble(),
+      tax: (sale['tax'] as num).toDouble(),
+      total: (sale['total'] as num).toDouble(),
+      paymentMethod: sale['paymentMethod'] as String,
+      customerName: sale['customerName'] as String?,
+      staffName: sale['staffName'] as String?,
     );
   }
 }

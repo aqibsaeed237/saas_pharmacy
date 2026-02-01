@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:device_preview/device_preview.dart' show DevicePreview;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/di/injection_container.dart';
@@ -85,6 +87,29 @@ class _MyAppState extends State<MyApp> {
       );
     }
 
+    final app = ListenableBuilder(
+      listenable: Listenable.merge([_themeManager, _localeManager]),
+      builder: (context, _) {
+        return MaterialApp.router(
+          title: 'Pharmacy POS',
+          debugShowCheckedModeBanner: false,
+          theme: _themeManager.getCurrentTheme(context),
+          darkTheme: AppTheme.darkTheme,
+          themeMode: _themeManager.themeMode,
+          locale: kDebugMode ? DevicePreview.locale(context) : _localeManager.locale,
+          builder: kDebugMode ? DevicePreview.appBuilder : null,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          routerConfig: AppRouter.router,
+        );
+      },
+    );
+
     return MultiBlocProvider(
       providers: [
         BlocProvider(
@@ -92,27 +117,12 @@ class _MyAppState extends State<MyApp> {
         ),
       ],
       child: ExitConfirmation(
-        child: ListenableBuilder(
-          listenable: Listenable.merge([_themeManager, _localeManager]),
-          builder: (context, _) {
-            return MaterialApp.router(
-              title: 'Pharmacy POS',
-              debugShowCheckedModeBanner: false,
-              theme: _themeManager.getCurrentTheme(context),
-              darkTheme: AppTheme.darkTheme,
-              themeMode: _themeManager.themeMode,
-              locale: _localeManager.locale,
-              localizationsDelegates: const [
-                AppLocalizations.delegate,
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              supportedLocales: AppLocalizations.supportedLocales,
-              routerConfig: AppRouter.router,
-            );
-          },
-        ),
+        child: kDebugMode
+            ? DevicePreview(
+                enabled: true,
+                builder: (context) => app,
+              )
+            : app,
       ),
     );
   }

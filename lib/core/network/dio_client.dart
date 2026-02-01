@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:chucker_flutter/chucker_flutter.dart';
 import '../configs/app_config.dart';
 import '../error/exceptions.dart';
 import 'interceptors/auth_interceptor.dart';
@@ -27,7 +29,11 @@ class DioClient {
       ),
     );
 
-    // Interceptors disabled for UI testing
+    // Interceptors - Chucker for HTTP debug in debug mode
+    if (kDebugMode) {
+      _dio.interceptors.add(ChuckerDioInterceptor());
+    }
+    // Other interceptors disabled for UI testing
     // _dio.interceptors.addAll([
     //   LoggingInterceptor(),
     //   AuthInterceptor(_secureStorage),

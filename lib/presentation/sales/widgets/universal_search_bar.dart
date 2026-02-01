@@ -118,7 +118,7 @@ class _UniversalSearchBarState extends State<UniversalSearchBar> {
             decoration: InputDecoration(
               hintText: _isCustomerSearch
                   ? (loc?.translate('searchCustomers') ?? 'Search customers (use / for customer search)')
-                  : (loc?.translate('searchProductsBarcode') ?? 'Search products, barcode, SKU, or / for customer'),
+                  : (loc?.translate('searchProductsBarcode') ?? 'Search products, barcode, SKU...'),
               prefixIcon: Icon(_isCustomerSearch ? Icons.person_search : Icons.search),
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,

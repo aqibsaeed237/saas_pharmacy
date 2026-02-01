@@ -3,9 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Application theme configuration
 class AppTheme {
-  // Light Theme Colors
-  static const Color lightPrimary = Color(0xFF0066CC);
-  static const Color lightSecondary = Color(0xFF00A86B);
+  // Light Theme Colors - neutral like other modern apps (no blue)
+  static const Color lightPrimary = Color(0xFF374151);
+  static const Color lightSecondary = Color(0xFF059669);
   static const Color lightError = Color(0xFFDC3545);
   static const Color lightWarning = Color(0xFFFFC107);
   static const Color lightSuccess = Color(0xFF28A745);
@@ -16,9 +16,9 @@ class AppTheme {
   static const Color lightOnBackground = Color(0xFF1A1A1A);
   static const Color lightOnSurface = Color(0xFF1A1A1A);
 
-  // Dark Theme Colors
-  static const Color darkPrimary = Color(0xFF4A9EFF);
-  static const Color darkSecondary = Color(0xFF00D98B);
+  // Dark Theme Colors - neutral like other modern apps (no blue)
+  static const Color darkPrimary = Color(0xFF9CA3AF);
+  static const Color darkSecondary = Color(0xFF34D399);
   static const Color darkError = Color(0xFFEF5350);
   static const Color darkWarning = Color(0xFFFFB74D);
   static const Color darkSuccess = Color(0xFF66BB6A);

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../authentication/bloc/auth_bloc.dart';
+import '../../authentication/bloc/auth_event.dart';
+import '../../authentication/bloc/auth_state.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_enums.dart';
 import '../../../core/utils/permission_checker.dart';
@@ -34,7 +38,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final loc = AppLocalizations.of(context);
     final isTablet = MediaQuery.of(context).size.width >= 600;
     
-    return Scaffold(
+    return BlocListener<AuthBloc, AuthState>(
+      listenWhen: (prev, curr) => curr is AuthUnauthenticated,
+      listener: (context, state) => context.go(AppRoutes.login),
+      child: Scaffold(
       appBar: AppBar(
         title: Text(loc?.translate('dashboard') ?? AppStrings.dashboard),
         automaticallyImplyLeading: false, // No back button on dashboard
@@ -68,6 +75,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: isTablet ? _buildTabletLayout() : _buildMobileLayout(),
       drawer: isTablet ? _buildDrawer() : null,
+    ),
     );
   }
 
@@ -463,8 +471,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     icon: Icons.logout,
                     label: loc?.translate('logout') ?? 'Logout',
                     onTap: () {
-                      // Handle logout
-                      context.go('/login');
+                      context.read<AuthBloc>().add(const LogoutRequested());
                     },
                   ),
                 ],
